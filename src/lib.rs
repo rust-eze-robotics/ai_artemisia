@@ -14,6 +14,7 @@ use robotics_lib::world::{coordinates::Coordinate, World};
 use giotto_tool::tools::coordinate::GiottoCoordinate;
 use giotto_tool::tools::debugger::GiottoDebug;
 use giotto_tool::tools::drawer::Drawer;
+use giotto_tool::tools::image::GiottoImage;
 use giotto_tool::tools::status::GiottoStatus;
 use spyglass::spyglass::Spyglass;
 
@@ -68,7 +69,15 @@ impl ArtemisIA {
     }
     fn do_paint(&mut self, world: &mut World) -> RobotState {
         // pain't, create art from pain (and stuff you collected)
-        let img = utils::rand_img();
+        let img: GiottoImage;
+
+        if self.countdown > 0 {
+            img = utils::rand_img();
+            self.countdown -= 1;
+        } else {
+            img = utils::build_img("res/img/fontana_concettospaziale.png");
+        }
+
         let coord = GiottoCoordinate::new(
             self.robot.coordinate.get_row(),
             self.robot.coordinate.get_col(),
@@ -81,12 +90,18 @@ impl ArtemisIA {
             .draw_until_possible(self, world, false);
 
         match paint_state {
-            Ok(s) => match s {
-                GiottoStatus::Finished
-                | GiottoStatus::FinishedCell
-                | GiottoStatus::WaitingForEnergy => RobotState::CHILL,
-                GiottoStatus::WaitingForMaterials => RobotState::COLLECT,
-            },
+            Ok(s) => {
+                if self.countdown <= 0 && s == GiottoStatus::Finished {
+                    RobotState::STOP
+                } else {
+                    match s {
+                        GiottoStatus::Finished
+                        | GiottoStatus::FinishedCell
+                        | GiottoStatus::WaitingForEnergy => RobotState::CHILL,
+                        GiottoStatus::WaitingForMaterials => RobotState::COLLECT,
+                    }
+                }
+            }
             Err(_) => RobotState::CHILL,
         }
     }
@@ -95,10 +110,7 @@ impl ArtemisIA {
         // grand sortie: when the robot paints the amount of paintings, assigned during the init state,
         // it gracefully pegs out, and as a last performance the whole map gets covered in lava (red canva, inspired to Fontana's "Concetto Spaziale")
 
-        let path = "res/img/fontana_concettospaziale.jpg";
-        let painting = utils::build_img(path);
-
-        println!("{:?}", painting);
+        // TODO: gracefully terminate the robot, find out how to do it ;)
 
         RobotState::STOP
     }
