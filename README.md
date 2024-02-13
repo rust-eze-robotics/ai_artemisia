@@ -45,5 +45,11 @@ The AI is implemented as a state machine, with the following states:
 
 ---
 
+### Concept Poster
+
+![Poster](res/img/concept_poster.png)
+
+---
+
 Made with ♡ by
 [![Chiara S.](https://badgen.net/badge/icon/Chiara%20S./B67DFF?icon=github&label&labelColor=000)](https://github.com/chiarasabaini)
