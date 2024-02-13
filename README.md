@@ -1,8 +1,9 @@
+![Logo](res/img/logo.png)
+
 # Rust-eze Robotics' AI: Artemisia
 
-![Tags](https://badgen.net/badge/icon/%23AdvancedProgramming%20%23AI%20%23Artemisia/14406F1?icon=https://icons.getbootstrap.com/assets/icons/bookmarks-fill.svg&label&labelColor=FFF)
 
-![Language](https://img.shields.io/badge/Built_with-Rust-F86424?labelColor=000&logo=rust) ![Version](https://badgen.net/badge/Version/01.01/F08C2F?labelColor=000)
+![Tags](https://badgen.net/badge/icon/%23AdvancedProgramming%20%23AI%20%23ArtemisIA/14406F1?icon=https://icons.getbootstrap.com/assets/icons/bookmarks-fill.svg&label&labelColor=FFF) ![Language](https://img.shields.io/badge/Built_with-Rust-F86424?labelColor=000&logo=rust) ![Version](https://badgen.net/badge/Version/01.01/F08C2F?labelColor=000)
 
 ![GroupName](https://badgen.net/badge/Group%20Name/Rust-eze%20Robotics/A62424?labelColor=000) ![Author](https://badgen.net/badge/Author/Chiara%20S./F23A29?labelColor=000)
 
@@ -11,7 +12,7 @@
 
 # Summary
 
-- [Rust-eze Robotics' AI: Artemisia](#rusteze-robotics-ai-artemisia)
+- [Rust-eze Robotics' AI: ArtemisIA](#rusteze-robotics-ai-artemisia)
 - [Summary](#summary)
     - [Description](#description)
     - [Requirements](#requirements)
@@ -27,9 +28,9 @@ The AI is implemented in Rust and uses the `robotics_lib` library to interact wi
 
 The AI is implemented as a state machine, with the following states:
 - `INIT`: the AI initializes itself, setting all the necessary parameters
-- `COLLECT`: the AI collects materials
-- `CHILL`: the AI idles for a while, to get inspired
-- `PAINT`: the AI paints the world
+- `CHILL`: the AI wanders around for a while, exploring the world with the `spyglass` tool, to get inspired for her next masterpiece
+- `COLLECT`: the AI collects materials, using the `sense&find` tool
+- `PAINT`: the AI paints the world, using the `giotto_tool`
 - `STOP`: the AI terminates her existence, with a final painting
 
 ---
