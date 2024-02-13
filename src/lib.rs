@@ -2,6 +2,7 @@ pub mod utils;
 
 // std libs
 use rand::Rng;
+use std::sync::Mutex;
 
 // robotics_lib
 use robotics_lib::energy::Energy;
@@ -10,7 +11,10 @@ use robotics_lib::runner::{backpack::BackPack, Robot, Runnable};
 use robotics_lib::world::{coordinates::Coordinate, World};
 
 // tools
-use giotto_tool::tools::image::{GiottoImage, GiottoImageBuilder};
+use giotto_tool::tools::coordinate::GiottoCoordinate;
+use giotto_tool::tools::debugger::GiottoDebug;
+use giotto_tool::tools::drawer::Drawer;
+use giotto_tool::tools::status::GiottoStatus;
 use spyglass::spyglass::Spyglass;
 
 enum RobotState {
@@ -62,13 +66,28 @@ impl ArtemisIA {
 
         RobotState::PAINT
     }
-    fn do_paint(&mut self) -> RobotState {
+    fn do_paint(&mut self, world: &mut World) -> RobotState {
         // pain't, create art from pain (and stuff you collected)
+        let img = utils::rand_img();
+        let coord = GiottoCoordinate::new(
+            self.robot.coordinate.get_row(),
+            self.robot.coordinate.get_col(),
+        );
+        let painter = Mutex::new(Drawer::new(img, coord, GiottoDebug::new(false)));
 
-        if self.countdown == 0 {
-            RobotState::STOP
-        } else {
-            RobotState::CHILL
+        let paint_state = painter
+            .lock()
+            .unwrap()
+            .draw_until_possible(self, world, false);
+
+        match paint_state {
+            Ok(s) => match s {
+                GiottoStatus::Finished
+                | GiottoStatus::FinishedCell
+                | GiottoStatus::WaitingForEnergy => RobotState::CHILL,
+                GiottoStatus::WaitingForMaterials => RobotState::COLLECT,
+            },
+            Err(_) => RobotState::CHILL,
         }
     }
     fn do_stop(&mut self) -> RobotState {
@@ -84,13 +103,14 @@ impl ArtemisIA {
         RobotState::STOP
     }
 
-    fn run(&mut self) {
+    fn run(&mut self, world: &mut World) {
         let new_state;
+
         match &self.state {
             RobotState::INIT => new_state = self.do_init(),
             RobotState::CHILL => new_state = self.do_chill(),
             RobotState::COLLECT => new_state = self.do_collect(),
-            RobotState::PAINT => new_state = self.do_paint(),
+            RobotState::PAINT => new_state = self.do_paint(world),
             RobotState::STOP => new_state = self.do_stop(),
             _ => panic!("Invalid state"),
         }
@@ -100,6 +120,7 @@ impl ArtemisIA {
             | (RobotState::CHILL, RobotState::COLLECT)
             | (RobotState::COLLECT, RobotState::PAINT)
             | (RobotState::PAINT, RobotState::CHILL)
+            | (RobotState::PAINT, RobotState::COLLECT)
             | (RobotState::PAINT, RobotState::STOP) => self.state = new_state,
             _ => panic!("Invalid state transition"),
         }
@@ -108,7 +129,7 @@ impl ArtemisIA {
 
 impl Runnable for ArtemisIA {
     fn process_tick(&mut self, world: &mut robotics_lib::world::World) {
-        self.run();
+        self.run(world);
     }
 
     fn handle_event(&mut self, event: Event) {
