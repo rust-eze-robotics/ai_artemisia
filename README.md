@@ -21,7 +21,7 @@
 
 ## Description
 
-This AI is inspired to some great artists and takes her name from Artemisia Gentileschi. Her main goal is to paint the world with her colors, explore the environment and collect materials to create fine art, thanks to the `spyglass` and `sense&find` tools.
+This AI is inspired by some great artists and takes her name from Artemisia Gentileschi. Her main goal is to paint the world with her colors, explore the environment and collect materials to create fine art, thanks to the `spyglass` and `sense&find` tools.
 She will use them to paint the world, through the `giotto_tool`.
 
 The AI is implemented in Rust and uses the `robotics_lib` library to interact with the environment.
