@@ -18,7 +18,7 @@ use giotto_tool::tools::image::GiottoImage;
 use giotto_tool::tools::status::GiottoStatus;
 use spyglass::spyglass::Spyglass;
 
-enum RobotState {
+pub enum RobotState {
     INIT = 0,
     CHILL, // wanders around for a while, exploring the world using `spyglass` to get inspired for her next masterpiece
     COLLECT, // use `sense&find` to find collect stuff
@@ -27,7 +27,7 @@ enum RobotState {
     NUM_STATES,
 }
 
-struct ArtemisIA {
+pub struct ArtemisIA {
     robot: Robot,
     wrld_size: usize,
     state: RobotState,
@@ -35,7 +35,7 @@ struct ArtemisIA {
 }
 
 impl ArtemisIA {
-    fn new() -> Self {
+    pub fn new() -> Self {
         ArtemisIA {
             robot: Robot::new(),
             wrld_size: 500,
@@ -45,13 +45,13 @@ impl ArtemisIA {
     }
 
     // state functions
-    fn do_init(&mut self) -> RobotState {
+    pub fn do_init(&mut self) -> RobotState {
         let mut rng = rand::thread_rng();
         self.countdown = rng.gen_range(0..=13);
 
         RobotState::CHILL
     }
-    fn do_chill(&mut self) -> RobotState {
+    pub fn do_chill(&mut self) -> RobotState {
         // wanders around for a while, explore with spyglass, relax and get inspired
         let spyglass = Spyglass::new_default(
             self.robot.coordinate.get_row(),
@@ -62,12 +62,12 @@ impl ArtemisIA {
 
         RobotState::COLLECT
     }
-    fn do_collect(&mut self) -> RobotState {
+    pub fn do_collect(&mut self) -> RobotState {
         // TODO: sense&find to collect stuff
 
         RobotState::PAINT
     }
-    fn do_paint(&mut self, world: &mut World) -> RobotState {
+    pub fn do_paint(&mut self, world: &mut World) -> RobotState {
         // pain't, create art from pain (and stuff you collected)
         let img: GiottoImage;
 
@@ -105,7 +105,7 @@ impl ArtemisIA {
             Err(_) => RobotState::CHILL,
         }
     }
-    fn do_stop(&mut self) -> RobotState {
+    pub fn do_stop(&mut self) -> RobotState {
         // 'peg out', 'die', 'stop working'
         // grand sortie: when the robot paints the amount of paintings, assigned during the init state,
         // it gracefully pegs out, and as a last performance the whole map gets covered in lava (red canva, inspired to Fontana's "Concetto Spaziale")
@@ -115,7 +115,7 @@ impl ArtemisIA {
         RobotState::STOP
     }
 
-    fn run(&mut self, world: &mut World) {
+    pub fn run(&mut self, world: &mut World) {
         let new_state;
 
         match &self.state {
