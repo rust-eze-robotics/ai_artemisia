@@ -71,12 +71,12 @@ impl ArtemisIA {
         // pain't, create art from pain (and stuff you collected)
         let img: GiottoImage;
 
-        if self.countdown > 0 {
+        // if self.countdown > 0 {
             img = utils::rand_img();
-            self.countdown -= 1;
-        } else {
-            img = utils::build_img("res/img/fontana_concettospaziale.png");
-        }
+            // self.countdown -= 1;
+        // } else {
+        //     img = utils::build_img("res/img/fontana_concettospaziale.png");
+        // }
 
         let coord = GiottoCoordinate::new(
             self.robot.coordinate.get_row(),
