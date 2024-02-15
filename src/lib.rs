@@ -1,8 +1,10 @@
 pub mod utils;
 
+use std::cell::RefCell;
+use std::rc::Rc;
+
 // std libs
 use rand::Rng;
-use std::sync::Mutex;
 
 // robotics_lib
 use robotics_lib::energy::Energy;
@@ -32,15 +34,17 @@ pub struct ArtemisIA {
     wrld_size: usize,
     state: RobotState,
     countdown: i32,
+    event_queue: Rc<RefCell<Vec<Event>>>,
 }
 
 impl ArtemisIA {
-    pub fn new() -> Self {
+    pub fn new(event_queue: Rc<RefCell<Vec<Event>>>) -> Self {
         ArtemisIA {
             robot: Robot::new(),
             wrld_size: 500,
             state: RobotState::INIT,
             countdown: 0,
+            event_queue: Rc::new(RefCell::new(Vec::new())),
         }
     }
 
@@ -51,7 +55,7 @@ impl ArtemisIA {
 
         RobotState::CHILL
     }
-    pub fn do_chill(&mut self) -> RobotState {
+    pub fn do_chill(&mut self, world: &mut World) -> RobotState {
         // wanders around for a while, explore with spyglass, relax and get inspired
         let spyglass = Spyglass::new_default(
             self.robot.coordinate.get_row(),
@@ -60,10 +64,13 @@ impl ArtemisIA {
             self.wrld_size,
         );
 
+        spyglass.new_discover(self.robot, world);
+
         RobotState::COLLECT
     }
     pub fn do_collect(&mut self) -> RobotState {
         // TODO: sense&find to collect stuff
+
 
         RobotState::PAINT
     }
@@ -71,23 +78,21 @@ impl ArtemisIA {
         // pain't, create art from pain (and stuff you collected)
         let img: GiottoImage;
 
-        // if self.countdown > 0 {
+        if self.countdown > 0 {
             img = utils::rand_img();
-            // self.countdown -= 1;
-        // } else {
-        //     img = utils::build_img("res/img/fontana_concettospaziale.png");
-        // }
+            self.countdown -= 1;
+        } else {
+            // img = utils::build_img("res/img/fontana_concettospaziale.png");
+            img = utils::build_img("res/img/meow.png");
+        }
 
         let coord = GiottoCoordinate::new(
             self.robot.coordinate.get_row(),
             self.robot.coordinate.get_col(),
         );
-        let painter = Mutex::new(Drawer::new(img, coord, GiottoDebug::new(false)));
+        let mut painter = Drawer::new(img, coord, GiottoDebug::new(false));
 
-        let paint_state = painter
-            .lock()
-            .unwrap()
-            .draw_until_possible(self, world, false);
+        let paint_state = painter.draw_until_possible(self, world, false);
 
         match paint_state {
             Ok(s) => {
@@ -120,7 +125,7 @@ impl ArtemisIA {
 
         match &self.state {
             RobotState::INIT => new_state = self.do_init(),
-            RobotState::CHILL => new_state = self.do_chill(),
+            RobotState::CHILL => new_state = self.do_chill(world),
             RobotState::COLLECT => new_state = self.do_collect(),
             RobotState::PAINT => new_state = self.do_paint(world),
             RobotState::STOP => new_state = self.do_stop(),
@@ -145,6 +150,7 @@ impl Runnable for ArtemisIA {
     }
 
     fn handle_event(&mut self, event: Event) {
+        self.event_queue.borrow_mut().push(event);
         println!("{:?}", event);
     }
     fn get_energy(&self) -> &Energy {
