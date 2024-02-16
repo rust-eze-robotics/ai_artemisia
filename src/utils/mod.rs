@@ -3,10 +3,19 @@ pub use rand::Rng;
 
 // tools
 pub use giotto_tool::tools::image::{GiottoImage, GiottoImageBuilder};
+pub use spyglass::spyglass::{Spyglass, SpyglassResult};
 
 pub const IMG_PATH: &str = "res/img/";
 
-pub const IMGS: [&str; 1] = ["meow.png"];
+pub const IMGS: [&str; 7] = [
+    "meow.png",
+    "agentileschi_giodittaoloferne.png",
+    "fontana_concettospaziale.png",
+    "giulialama_martirioeurosia.png",
+    "meow.png",
+    "paularego_war.png",
+    "remediosvaro_fenomeno.png",
+];
 
 pub fn build_img(path: &str) -> GiottoImage {
     GiottoImageBuilder::new()
