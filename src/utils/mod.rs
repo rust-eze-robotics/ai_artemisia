@@ -3,7 +3,6 @@ pub use rand::Rng;
 
 // tools
 pub use giotto_tool::tools::image::{GiottoImage, GiottoImageBuilder};
-pub use spyglass::spyglass::{Spyglass, SpyglassResult};
 
 pub const IMG_PATH: &str = "res/img/";
 
