@@ -2,10 +2,10 @@
 
 [package]
 name = "rust_eze_ai_artemisia"
-description = "Rust-eze Robotics - Artemisia Gentileschi AI"
+description = "Rust-eze Robotics - ArtemisIA"
 authors = ["Chiara S."]
-version = "0.0.0"
-edition = "2021"
+version = "0.0.5"
+edition = "2024"
 exclude = [".*"]
 
 # [lib]
