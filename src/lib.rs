@@ -1,4 +1,5 @@
 pub mod utils;
+use bob_lib::tracker::{Goal, GoalTracker, GoalType};
 use midgard::params::{ContentsRadii, WorldGeneratorParameters};
 // std libs
 use rand::Rng;
@@ -61,13 +62,22 @@ pub struct ArtemisIA {
     countdown: i32,
     contents: VecDeque<(usize, usize)>,
     actions: VecDeque<Action>,
-    // event_queue: Rc<RefCell<Vec<Event>>>,
+    goal_tracker: GoalTracker,
 }
 
 impl ArtemisIA {
     // pub fn new(wrld_size: usize, event_queue: Rc<RefCell<Vec<Event>>>) -> Self {
 
     pub fn new(wrld_size: usize, ui: Box<dyn RunnableUi>) -> Self {
+        let mut goal_tracker = GoalTracker::new();
+        goal_tracker.add_goal(Goal::new(
+            String::from("Contents"),
+            String::default(),
+            GoalType::GetItems,
+            None,
+            20,
+        ));
+
         ArtemisIA {
             ui,
             robot: Robot::new(),
@@ -76,7 +86,7 @@ impl ArtemisIA {
             countdown: 1,
             contents: VecDeque::new(),
             actions: VecDeque::new(),
-            // event_queue: Rc::new(RefCell::new(Vec::new())),
+            goal_tracker,
         }
     }
 
@@ -191,8 +201,18 @@ impl ArtemisIA {
         let rocks = CollectTool::collect_instantly_reachable(self, world, &Content::Rock(0));
         let trees = CollectTool::collect_instantly_reachable(self, world, &Content::Tree(0));
 
+        if let Ok(count) = rocks {
+            self.goal_tracker
+                .update_manual(GoalType::GetItems, None, count)
+        }
+
+        if let Ok(count) = trees {
+            self.goal_tracker
+                .update_manual(GoalType::GetItems, None, count)
+        }
+
         if rocks.is_ok() || trees.is_ok() {
-            if self.get_backpack().get_size() >= 20 {
+            if self.goal_tracker.get_completed_number() > 0 {
                 Ok(RobotState::Paint)
             } else {
                 Ok(RobotState::Gather)
