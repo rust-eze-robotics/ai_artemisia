@@ -256,6 +256,8 @@ impl ArtemisIA {
     pub fn run(&mut self, world: &mut World) {
         let new_state;
 
+        println!("{:?}", self.state);
+
         match &self.state {
             RobotState::Init => new_state = self.do_init(),
             RobotState::Chill => new_state = self.do_chill(world),
