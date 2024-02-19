@@ -4,14 +4,15 @@ pub use rand::Rng;
 // tools
 pub use giotto_tool::tools::image::{GiottoImage, GiottoImageBuilder};
 
+pub const DEBUG: bool = false;
 pub const IMG_PATH: &str = "res/img/";
 
-pub const IMGS: [&str; 7] = [
+pub const IMGS: [&str; 6] = [
     "meow.png",
     "agentileschi_giodittaoloferne.png",
     "fontana_concettospaziale.png",
     "giulialama_martirioeurosia.png",
-    "meow.png",
+    // "meow.png",
     "paularego_war.png",
     "remediosvaro_fenomeno.png",
 ];
@@ -28,10 +29,18 @@ pub fn rand_img() -> GiottoImage {
     let img_name = IMGS[rng.gen_range(0..IMGS.len())];
     let tmp = [IMG_PATH.to_string(), img_name.to_string()].concat();
 
+    print_debug(format!("Painting's name: {}", tmp).as_str());
+
     let img_path = tmp.as_str();
 
     let giotto_img: GiottoImage = build_img(img_path);
-    println!("{:?}", giotto_img);
+    print_debug(format!("{:?}", giotto_img).as_str());
 
     giotto_img
+}
+
+pub fn print_debug(s: &str) {
+    if DEBUG {
+        println!("\nARTEMIS-IA: {}\n", s);
+    }
 }
