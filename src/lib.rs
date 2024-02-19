@@ -192,7 +192,11 @@ impl ArtemisIA {
         let trees = CollectTool::collect_instantly_reachable(self, world, &Content::Tree(0));
 
         if rocks.is_ok() || trees.is_ok() {
-            Ok(RobotState::Paint)
+            if self.get_backpack().get_size() >= 20 {
+                Ok(RobotState::Paint)
+            } else {
+                Ok(RobotState::Gather)
+            }
         } else {
             Err("\nARTEMIS-IA: failed to gather\n".to_string())
         }
