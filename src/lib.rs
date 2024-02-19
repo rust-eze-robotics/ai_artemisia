@@ -1,8 +1,9 @@
 pub mod utils;
+use midgard::params::{ContentsRadii, WorldGeneratorParameters};
 // std libs
 use rand::Rng;
-use ui_lib::RunnableUi;
 use std::collections::VecDeque;
+use ui_lib::RunnableUi;
 use utils::print_debug;
 // robotics_lib
 use robotics_lib::{
@@ -21,9 +22,22 @@ use giotto_tool::tools::{
     coordinate::GiottoCoordinate, debugger::GiottoDebug, drawer::Drawer, image::GiottoImage,
     status::GiottoStatus,
 };
-use sense_and_find_by_rustafariani::{Action, Lssf};
+use sense_and_find_by_Rustafariani::{Action, Lssf};
 use spyglass::spyglass::{Spyglass, SpyglassResult};
 use OhCrab_collection::collection::CollectTool;
+
+pub fn get_world_generator_parameters() -> WorldGeneratorParameters {
+    WorldGeneratorParameters {
+        time_progression_minutes: 60,
+        contents_radii: ContentsRadii {
+            rocks_in_plains: 3,
+            rocks_in_hill: 3,
+            rocks_in_mountain: 3,
+            ..Default::default()
+        },
+        ..Default::default()
+    }
+}
 
 #[derive(Debug, PartialEq)]
 pub enum RobotState {
