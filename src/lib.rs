@@ -124,10 +124,10 @@ impl ArtemisIA {
             .extend(lssf.get_content_vec(&Content::Tree(0)).iter());
 
         if self.contents.is_empty() {
-            return Ok(RobotState::Chill);
+            Ok(RobotState::Chill)
+        } else {
+            Ok(RobotState::Gather)
         }
-
-        Err(String::default())
     }
 
     pub fn do_gather(&mut self, world: &mut World) -> Result<RobotState, String> {
@@ -147,7 +147,6 @@ impl ArtemisIA {
                 if let Ok(vec) = result {
                     self.actions = VecDeque::new();
                     self.actions.extend(vec.into_iter());
-                    return Ok(RobotState::Gather);
                 }
             } else {
                 return Ok(RobotState::Chill);
