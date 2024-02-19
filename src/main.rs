@@ -33,8 +33,8 @@ fn main() {
 }
 
 struct UI {}
-
-impl RunnableUi for UI{
+#[allow(unused_variables)]
+impl RunnableUi for UI {
     fn process_tick(&mut self, world: &mut World){}
     fn handle_event(&mut self, event: Event){}
 }
