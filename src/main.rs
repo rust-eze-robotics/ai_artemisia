@@ -1,6 +1,6 @@
 use midgard::world_generator::{WorldGenerator, WorldGeneratorParameters};
 use robotics_lib::{event::events::Event, runner::Runner, world::World};
-use rust_eze_ai_artemisia::ArtemisIA;
+use rusteze_ai_artemisia::ArtemisIA;
 use ui_lib::RunnableUi;
 
 fn main() {

@@ -28,6 +28,16 @@ use sense_and_find_by_rustafariani::{Action, Lssf};
 use spyglass::spyglass::Spyglass;
 use OhCrab_collection::collection::CollectTool;
 
+
+/// This function returns the WorldGeneratorParameters for ArtemisIA
+/// # Returns
+/// * a WorldGeneratorParameters
+/// # Example
+/// ```
+/// let wgp = get_world_generator_parameters();
+/// ```
+/// # Note
+/// * The function returns a WorldGeneratorParameters with the hardcoded values
 pub fn get_world_generator_parameters() -> WorldGeneratorParameters {
     WorldGeneratorParameters {
         time_progression_minutes: 60,
@@ -44,6 +54,15 @@ pub fn get_world_generator_parameters() -> WorldGeneratorParameters {
     }
 }
 
+
+/// This enum represents the states of the robot
+/// # Example
+/// ```
+/// let state = RobotState::INIT;
+/// ```
+/// # Note
+/// * The states are INIT, CHILL, DETECT, GATHER, PAINT, DIE
+/// * The states are used to control the robot's behavior, because it's built as a FSM
 #[derive(Debug, PartialEq)]
 pub enum RobotState {
     INIT = 0,
@@ -55,6 +74,13 @@ pub enum RobotState {
            // NUM_STATES,
 }
 
+/// This struct represents the ArtemisIA robot
+/// # Note
+/// * The struct uses the Runnable trait to interact with the world
+/// * The struct uses the RunnableUi trait to interact with the UI
+/// * The struct uses the Robot struct to store the robot's data
+/// * The struct uses the RobotState enum to store the robot's state
+/// * The struct uses the GoalTracker struct to store the robot's goals
 pub struct ArtemisIA {
     robot: Robot,
     wrld_size: usize,
@@ -67,8 +93,19 @@ pub struct ArtemisIA {
 }
 
 impl ArtemisIA {
-    // pub fn new(wrld_size: usize, event_queue: Rc<RefCell<Vec<Event>>>) -> Self {
-
+    // constructor
+    /// This function returns a new ArtemisIA
+    /// # Arguments
+    /// * `wrld_size` - The size of the world
+    /// * `ui` - A Box<dyn RunnableUi>
+    /// # Returns
+    /// * a ArtemisIA
+    /// # Example
+    /// ```
+    /// let artemis = ArtemisIA::new(10, Box::new(ui));
+    /// ```
+    /// # Note
+    /// * The function returns a new ArtemisIA with the given parameters set
     pub fn new(wrld_size: usize, ui: Box<dyn RunnableUi>) -> Self {
         let mut goal_tracker = GoalTracker::new();
         goal_tracker.add_goal(Goal::new(
@@ -92,6 +129,18 @@ impl ArtemisIA {
     }
 
     // state functions
+
+    /// This function handles the INIT state
+    /// # Returns
+    /// * a Result<RobotState, String>
+    /// # Example
+    /// ```
+    /// let state = artemis.do_init();
+    /// ```
+    /// # Note
+    /// * The function returns a Result with the new state or an error message
+    /// * The function sets the countdown to a random number between 0 and 13, which is the number of paintings the robot will make before going into the DIE state
+    /// * The function returns CHILL if the countdown is greater than 0, otherwise it returns an error
     pub fn do_init(&mut self) -> Result<RobotState, String> {
         let mut rng = rand::thread_rng();
         self.countdown = rng.gen_range(0..=13);
@@ -103,6 +152,18 @@ impl ArtemisIA {
         }
     }
 
+    /// This function handles the CHILL state
+    /// # Arguments
+    /// * `world` - A mutable reference to the World
+    /// # Returns
+    /// * a Result<RobotState, String>
+    /// # Example
+    /// ```
+    /// let state = artemis.do_chill(world);
+    /// ```
+    /// # Note
+    /// * The function uses the Spyglass to explore the world and get inspired for the next masterpiece
+    /// * The function uses the Lssf to look around and find contents in the world
     pub fn do_chill(&mut self, world: &mut World) -> Result<RobotState, String> {
         // wanders around for a while, explore with spyglass, relax and get inspired for her next masterpiece
 
@@ -198,6 +259,18 @@ impl ArtemisIA {
         Ok(RobotState::DETECT)
     }
 
+    /// This function handles the GATHER state
+    /// # Arguments
+    /// * `world` - A mutable reference to the World
+    /// # Returns
+    /// * a Result<RobotState, String>
+    /// # Example
+    /// ```
+    /// let state = artemis.do_gather(world);
+    /// ```
+    /// # Note
+    /// * The function uses the CollectTool to gather rocks and trees
+    /// * The function updates the goal tracker with the number of rocks and trees gathered
     pub fn do_gather(&mut self, world: &mut World) -> Result<RobotState, String> {
         let rocks = CollectTool::collect_instantly_reachable(self, world, &Content::Rock(0));
         let trees = CollectTool::collect_instantly_reachable(self, world, &Content::Tree(0));
@@ -223,10 +296,22 @@ impl ArtemisIA {
         }
     }
 
+    /// This function handles the PAINT state
+    /// # Arguments
+    /// * `world` - A mutable reference to the World
+    /// # Returns
+    /// * a Result<RobotState, String>
+    /// # Example
+    /// ```
+    /// let state = artemis.do_paint(world);
+    /// ```
+    /// # Note
+    /// * The function uses the giotto_tool to paint on the map
+    /// THIS FUNCTION IS ACTUALLY BROKEN! IT'S GOING TO PANIC!
     pub fn do_paint(&mut self, world: &mut World) -> Result<RobotState, String> {
         // pain't, create art from pain (and stuff you collected)
         let img: GiottoImage;
-
+        
         if self.countdown > 0 {
             img = utils::rand_img();
             self.countdown -= 1;
@@ -239,7 +324,7 @@ impl ArtemisIA {
             self.robot.coordinate.get_row(),
             self.robot.coordinate.get_col(),
         );
-        let mut painter = Drawer::new(img, coord, GiottoDebug::new(false));
+        let mut painter = Drawer::new(img, coord, GiottoDebug::new(utils::DEBUG));
 
         let paint_state = painter.draw_until_possible(self, world, false);
 
@@ -256,11 +341,20 @@ impl ArtemisIA {
                     }
                 }
             }
-            Err(_) => Err("\nARTEMIS-IA: painting failed\n".to_string()),
+            Err(e) => Err(format!("\nARTEMIS-IA: painting failed because {:?}\n", e)),
         }
     }
 
-    pub fn do_stop(&mut self) -> Result<RobotState, String> {
+    /// This function handles the DIE state
+    /// # Returns
+    /// * a Result<RobotState, String>
+    /// # Example
+    /// ```
+    /// let state = artemis.do_stop();
+    /// ```
+    /// # Note
+    /// * The function calls the handle_event function with the Event::Terminated
+    pub fn do_die(&mut self) -> Result<RobotState, String> {
         // 'peg out', 'die', 'stop working'
         // grand sortie: when the robot paints the amount of paintings, assigned during the init state,
         // it gracefully pegs out, and as a last performance the whole map gets covered in lava (red canva, inspired to Fontana's "Concetto Spaziale")
@@ -273,6 +367,20 @@ impl ArtemisIA {
         }
     }
 
+    // run function
+
+    /// This function runs the robot
+    /// # Arguments
+    /// * `world` - A mutable reference to the World
+    /// # Example
+    /// ```
+    /// artemis.run(world);
+    /// ```
+    /// # Note
+    /// * The function prints debug messages
+    /// * The function calls the state function for the current state
+    /// * The function updates the state based on the new state
+    /// * The function panics if the state transition is invalid
     pub fn run(&mut self, world: &mut World) {
         print_debug("why are you running? why-are-you-running?");
         let new_state;
@@ -283,7 +391,7 @@ impl ArtemisIA {
             RobotState::DETECT => new_state = self.do_detect(world),
             RobotState::GATHER => new_state = self.do_gather(world),
             RobotState::PAINT => new_state = self.do_paint(world),
-            RobotState::DIE => new_state = self.do_stop(),
+            RobotState::DIE => new_state = self.do_die(),
         }
 
         match new_state {
@@ -308,6 +416,9 @@ impl ArtemisIA {
         }
     }
 }
+
+
+// Runnable trait implementation
 
 impl Runnable for ArtemisIA {
     fn process_tick(&mut self, world: &mut World) {
