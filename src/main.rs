@@ -6,7 +6,7 @@ fn main() {
     let world_size = 200;
     let params = WorldGeneratorParameters {
         seed: 15,                    // fixed seed
-        world_size,             // smaller world
+        world_size,                  // smaller world
         amount_of_rivers: Some(1.2), // more rivers
         amount_of_streets: None,     // disable streets
         ..Default::default()         // the rest of the parameters keep their default value
@@ -18,11 +18,12 @@ fn main() {
 
     match run {
         Ok(mut robot) => {
-            for _ in 0..42 {
+            for i in 0..300 {
+                println!("\nGame tick {}", i);
                 let _ = robot.game_tick();
             }
         }
-        Err(e) => println!("{:?}", e),
+        Err(e) => println!("LibError {:?}", e),
     }
 
     println!("in the end, it all ends.");
