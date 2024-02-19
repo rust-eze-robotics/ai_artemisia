@@ -56,8 +56,7 @@ pub struct ArtemisIA {
     ui: Box<dyn RunnableUi>,
     state: RobotState,
     countdown: i32,
-    rocks: VecDeque<(usize, usize)>,
-    trees: VecDeque<(usize, usize)>,
+    contents: VecDeque<(usize, usize)>,
     actions: VecDeque<Action>,
     // event_queue: Rc<RefCell<Vec<Event>>>,
 }
@@ -74,8 +73,7 @@ impl ArtemisIA {
             wrld_size,
             state: RobotState::Init,
             countdown: 1,
-            rocks: VecDeque::new(),
-            trees: VecDeque::new(),
+            contents: VecDeque::new(),
             actions: VecDeque::new(),
             // event_queue: Rc::new(RefCell::new(Vec::new())),
         }
@@ -103,7 +101,7 @@ impl ArtemisIA {
         let mut spyglass = Spyglass::new(
             self.robot.coordinate.get_row(),
             self.robot.coordinate.get_col(),
-            7,
+            10,
             self.wrld_size,
             Some(self.robot.energy.get_energy_level()),
             true,
@@ -134,29 +132,22 @@ impl ArtemisIA {
             self.robot.coordinate.get_col(),
         );
 
-        let vec = lssf.get_content_vec(&Content::Rock(0));
-        self.rocks = VecDeque::new();
-        for (row, col) in vec {
-            self.rocks.push_back((row, col));
+        self.contents = VecDeque::new();
+        self.contents
+            .extend(lssf.get_content_vec(&Content::Rock(0)).iter());
+        self.contents
+            .extend(lssf.get_content_vec(&Content::Tree(0)).iter());
+
+        if self.contents.is_empty() {
+            return Ok(RobotState::Chill);
         }
 
-        let vec = lssf.get_content_vec(&Content::Tree(0));
-        self.trees = VecDeque::new();
-        for (row, col) in vec {
-            self.trees.push_back((row, col));
-        }
+        if let Some((row, col)) = self.contents.pop_front() {
+            let result = lssf.get_action_vec(row, col);
 
-        if self.actions.is_empty() {
-            if self.rocks.is_empty() && self.trees.is_empty() {
-                return Ok(RobotState::Chill);
-            }
-
-            // if let Some((row, col)) = self.rocks.pop_front() {
-            //     self.actions.extend(lssf.get_action_vec(row, col).unwrap());
-            // }
-
-            if let Some((row, col)) = self.trees.pop_front() {
-                self.actions.extend(lssf.get_action_vec(row, col).unwrap());
+            if let Ok(vec) = result {
+                self.actions = VecDeque::new();
+                self.actions.extend(vec.into_iter());
                 return Ok(RobotState::Gather);
             }
         }
@@ -196,9 +187,9 @@ impl ArtemisIA {
         if self.actions.len() == 1 {
             self.actions = VecDeque::new();
             return Ok(RobotState::Collect);
-        } else {
-            return Ok(RobotState::Chill);
         }
+
+        Ok(RobotState::Gather)
     }
 
     pub fn do_collect(&mut self, world: &mut World) -> Result<RobotState, String> {
@@ -282,23 +273,24 @@ impl ArtemisIA {
             RobotState::Stop => new_state = self.do_stop(),
         }
 
-        match new_state {
-            Ok(new) => {
-                print_debug(format!("state transition: {:?} -> {:?}", self.state, new).as_str());
-                match (&self.state, &new) {
-                    (RobotState::Init, RobotState::Chill)
-                    | (RobotState::Chill, RobotState::Chill)
-                    | (RobotState::Chill, RobotState::Gather)
-                    | (RobotState::Gather, RobotState::Gather)
-                    | (RobotState::Gather, RobotState::Paint)
-                    | (RobotState::Paint, RobotState::Chill)
-                    | (RobotState::Paint, RobotState::Gather)
-                    | (RobotState::Paint, RobotState::Stop) => self.state = new,
-                    _ => panic!("Invalid state transition"),
-                }
-            }
-            Err(e) => print_debug(format!("ERROR: {}\n", e).as_str()),
-        }
+        // :)
+        // match new_state {
+        //     Ok(new) => {
+        //         print_debug(format!("state transition: {:?} -> {:?}", self.state, new).as_str());
+        //         match (&self.state, &new) {
+        //             (RobotState::Init, RobotState::Chill)
+        //             | (RobotState::Chill, RobotState::Chill)
+        //             | (RobotState::Chill, RobotState::Gather)
+        //             | (RobotState::Gather, RobotState::Gather)
+        //             | (RobotState::Gather, RobotState::Paint)
+        //             | (RobotState::Paint, RobotState::Chill)
+        //             | (RobotState::Paint, RobotState::Gather)
+        //             | (RobotState::Paint, RobotState::Stop) => self.state = new,
+        //             _ => panic!("Invalid state transition"),
+        //         }
+        //     }
+        //     Err(e) => print_debug(format!("ERROR: {}\n", e).as_str()),
+        // }
     }
 }
 
