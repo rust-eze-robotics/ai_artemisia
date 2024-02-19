@@ -18,16 +18,15 @@ use robotics_lib::{
     },
 };
 // tools
+use bob_lib::tracker::{Goal, GoalTracker, GoalType};
 use giotto_tool::tools::{
     coordinate::GiottoCoordinate, debugger::GiottoDebug, drawer::Drawer, image::GiottoImage,
     status::GiottoStatus,
 };
-use bob_lib::tracker::{Goal, GoalTracker, GoalType};
-use midgard::world_generator::{ContentsRadii, WorldGeneratorParameters};
-use sense_and_find_by_rustafariani::{Action, Lssf};
+use midgard::params::{ContentsRadii, WorldGeneratorParameters};
+use sense_and_find_by_Rustafariani::{Action, Lssf};
 use spyglass::spyglass::Spyglass;
 use OhCrab_collection::collection::CollectTool;
-
 
 /// This function returns the WorldGeneratorParameters for ArtemisIA
 /// # Returns
@@ -54,7 +53,6 @@ pub fn get_world_generator_parameters() -> WorldGeneratorParameters {
     }
 }
 
-
 /// This enum represents the states of the robot
 /// # Example
 /// ```
@@ -70,7 +68,7 @@ pub enum RobotState {
     DETECT, // use `sense&find` to find stuff
     GATHER, // use `collect_tool` to gather stuff
     PAINT, // use `giotto_tool` to paint on the map
-    DIE,  // as most artist do, the robot gracefully terminates its existance
+    DIE,   // as most artist do, the robot gracefully terminates its existance
            // NUM_STATES,
 }
 
@@ -311,7 +309,7 @@ impl ArtemisIA {
     pub fn do_paint(&mut self, world: &mut World) -> Result<RobotState, String> {
         // pain't, create art from pain (and stuff you collected)
         let img: GiottoImage;
-        
+
         if self.countdown > 0 {
             img = utils::rand_img();
             self.countdown -= 1;
@@ -416,7 +414,6 @@ impl ArtemisIA {
         }
     }
 }
-
 
 // Runnable trait implementation
 
