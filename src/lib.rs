@@ -127,20 +127,33 @@ impl ArtemisIA {
             return Ok(RobotState::Chill);
         }
 
-        if let Some((row, col)) = self.contents.pop_front() {
-            let result = lssf.get_action_vec(row, col);
-
-            if let Ok(vec) = result {
-                self.actions = VecDeque::new();
-                self.actions.extend(vec.into_iter());
-                return Ok(RobotState::Gather);
-            }
-        }
-
         Err(String::default())
     }
 
     pub fn do_gather(&mut self, world: &mut World) -> Result<RobotState, String> {
+        if self.actions.is_empty() {
+            if let Some((row, col)) = self.contents.pop_front() {
+                let map = robot_map(world).unwrap();
+
+                let mut lssf = Lssf::new();
+                lssf.update_map(&map);
+                let _ = lssf.update_cost(
+                    self.robot.coordinate.get_row(),
+                    self.robot.coordinate.get_col(),
+                );
+
+                let result = lssf.get_action_vec(row, col);
+
+                if let Ok(vec) = result {
+                    self.actions = VecDeque::new();
+                    self.actions.extend(vec.into_iter());
+                    return Ok(RobotState::Gather);
+                }
+            } else {
+                return Ok(RobotState::Chill);
+            }
+        }
+
         if self.actions.len() > 1 {
             if let Some(action) = self.actions.pop_front() {
                 match action {
