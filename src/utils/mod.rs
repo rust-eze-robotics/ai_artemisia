@@ -4,15 +4,14 @@ pub use rand::Rng;
 // tools
 pub use giotto_tool::tools::image::{GiottoImage, GiottoImageBuilder};
 
-pub const DEBUG: bool = false;
+pub const DEBUG: bool = true;
 pub const IMG_PATH: &str = "res/img/";
 
-pub const IMGS: [&str; 6] = [
-    "meow.png",
+pub const IMGS: [&str; 5] = [
     "agentileschi_giodittaoloferne.png",
     "fontana_concettospaziale.png",
     "giulialama_martirioeurosia.png",
-    // "meow.png",
+    // "meow.png", // this img gives problems
     "paularego_war.png",
     "remediosvaro_fenomeno.png",
 ];

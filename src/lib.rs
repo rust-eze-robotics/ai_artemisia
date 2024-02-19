@@ -1,12 +1,14 @@
 pub mod utils;
 // std libs
 use rand::Rng;
+use ui_lib::RunnableUi;
 use std::collections::VecDeque;
+use utils::print_debug;
 // robotics_lib
 use robotics_lib::{
     energy::Energy,
     event::events::Event,
-    interface::robot_map,
+    interface::{go, robot_map, robot_view, teleport, Direction},
     runner::{backpack::BackPack, Robot, Runnable},
     world::{
         coordinates::Coordinate,
@@ -19,7 +21,7 @@ use giotto_tool::tools::{
     coordinate::GiottoCoordinate, debugger::GiottoDebug, drawer::Drawer, image::GiottoImage,
     status::GiottoStatus,
 };
-use sense_and_find_by_rustafariani::Lssf;
+use sense_and_find_by_rustafariani::{Action, Lssf};
 use spyglass::spyglass::{Spyglass, SpyglassResult};
 use OhCrab_collection::collection::CollectTool;
 
@@ -36,33 +38,37 @@ pub enum RobotState {
 pub struct ArtemisIA {
     robot: Robot,
     wrld_size: usize,
+    ui: Box<dyn RunnableUi>,
     state: RobotState,
     countdown: i32,
     rocks: VecDeque<(usize, usize)>,
     trees: VecDeque<(usize, usize)>,
+    actions: VecDeque<Action>,
     // event_queue: Rc<RefCell<Vec<Event>>>,
 }
 
 impl ArtemisIA {
     // pub fn new(wrld_size: usize, event_queue: Rc<RefCell<Vec<Event>>>) -> Self {
 
-    pub fn new(wrld_size: usize) -> Self {
-        println!("\nARTEMIS-IA: ArtemisIA created\n");
+    pub fn new(wrld_size: usize, ui: Box<dyn RunnableUi>) -> Self {
+        print_debug("ArtemisIA created");
 
         ArtemisIA {
+            ui,
             robot: Robot::new(),
             wrld_size,
             state: RobotState::INIT,
             countdown: 1,
             rocks: VecDeque::new(),
             trees: VecDeque::new(),
+            actions: VecDeque::new(),
             // event_queue: Rc::new(RefCell::new(Vec::new())),
         }
     }
 
     // state functions
     pub fn do_init(&mut self) -> Result<RobotState, String> {
-        println!("\nARTEMIS-IA: in(n)it\n");
+        print_debug("in(n)itializing");
 
         let mut rng = rand::thread_rng();
         self.countdown = rng.gen_range(0..=13);
@@ -77,44 +83,47 @@ impl ArtemisIA {
     pub fn do_chill(&mut self, world: &mut World) -> Result<RobotState, String> {
         // wanders around for a while, explore with spyglass, relax and get inspired for her next masterpiece
 
-        println!("\nARTEMIS-IA: chilling");
+        print_debug("chilling");
 
         let mut spyglass = Spyglass::new(
             self.robot.coordinate.get_row(),
             self.robot.coordinate.get_col(),
-            self.wrld_size,
+            7,
             self.wrld_size,
             Some(self.robot.energy.get_energy_level()),
             true,
             (self.wrld_size / 2) as f64,
-            |tile: &Tile| matches!(tile.clone().content, Content::Rock(_)),
+            |tile: &Tile| matches!(tile.clone().content, Content::Rock(0)),
         );
         match spyglass.new_discover(self, world) {
-            SpyglassResult::Complete => {
-                println!("\nARTEMIS-IA: chilled enough, saw lots of ROCKS, time to gather");
+            SpyglassResult::Complete(_) => {
+                print_debug("chilled enough, saw lots of ROCKS, time to gather");
             }
             SpyglassResult::Failed(_) => {
                 return Err("\nARTEMIS-IA: oh no! our spyglass...is broken!\n".to_string());
             }
             _ => {
-                println!("\nARTEMIS-IA: chilling, looking for ROCKS");
+                print_debug("chilling, looking for ROCKS");
             }
         }
 
-        spyglass.set_stop_when(|tile: &Tile| matches!(tile.clone().content, Content::Tree(_)));
+        spyglass.set_stop_when(|tile: &Tile| matches!(tile.clone().content, Content::Tree(0)));
         match spyglass.new_discover(self, world) {
-            SpyglassResult::Complete => {
-                println!("\nARTEMIS-IA: chilled enough, saw lots of TREES, time to gather\n");
+            SpyglassResult::Complete(_) => {
+                print_debug("chilled enough, saw lots of TREES, time to gather");
             }
-            SpyglassResult::Failed(_) => {
-                return Err("\nARTEMIS-IA: oh no! our spyglass...is broken!\n".to_string());
+            SpyglassResult::Failed(e) => {
+                return Err(format!(
+                    "\nARTEMIS-IA: oh no! our spyglass...is broken!\nSPYGLASS FAILED: {:?}",
+                    e
+                ));
             }
             _ => {
-                println!("\nARTEMIS-IA: chilling, looking for TREES");
+                print_debug("chilling, looking for TREES");
             }
         }
 
-        println!("\nARTEMIS-IA: spyglass complete, time to lssf\n");
+        print_debug("spyglass complete, time to lssf");
 
         let map = robot_map(world).unwrap();
 
@@ -125,61 +134,85 @@ impl ArtemisIA {
             self.robot.coordinate.get_col(),
         );
 
-        self.rocks.extend(lssf.get_content_vec(&Content::Rock(0)));
-        self.trees.extend(lssf.get_content_vec(&Content::Tree(0)));
+        let vec = lssf.get_content_vec(&Content::Rock(0));
+        self.rocks = VecDeque::new();
+        for (row, col) in vec {
+            self.rocks.push_back((row, col));
+        }
 
-        println!("\nARTEMIS-IA: lssf lessgo\n");
+        let vec = lssf.get_content_vec(&Content::Tree(0));
+        self.trees = VecDeque::new();
+        for (row, col) in vec {
+            self.trees.push_back((row, col));
+        }
 
-        if !self.rocks.is_empty() && !self.trees.is_empty() {
-            Ok(RobotState::GATHER)
+        if self.actions.is_empty() {
+            if self.rocks.is_empty() || self.trees.is_empty() {
+                print_debug(self.rocks.len().to_string().as_str());
+                print_debug(self.trees.len().to_string().as_str());
+                return Ok(RobotState::CHILL);
+            }
+
+            if let Some((row, col)) = self.rocks.pop_front() {
+                self.actions.extend(lssf.get_action_vec(row, col).unwrap());
+            }
+
+            if let Some((row, col)) = self.trees.pop_front() {
+                self.actions.extend(lssf.get_action_vec(row, col).unwrap());
+            }
+        }
+
+        if self.actions.len() > 1 {
+            if let Some(action) = self.actions.pop_front() {
+                match action {
+                    Action::East => {
+                        let _ = go(self, world, Direction::Right);
+                        robot_view(self, world);
+                    }
+                    Action::South => {
+                        let _ = go(self, world, Direction::Down);
+                        robot_view(self, world);
+                    }
+                    Action::West => {
+                        let _ = go(self, world, Direction::Left);
+                        robot_view(self, world);
+                    }
+                    Action::North => {
+                        let _ = go(self, world, Direction::Up);
+                        robot_view(self, world);
+                    }
+                    Action::Teleport(row, col) => {
+                        let _ = teleport(self, world, (row, col));
+                    }
+                }
+            }
+        }
+
+        if self.actions.len() == 1 {
+            self.actions = VecDeque::new();
+            return Ok(RobotState::GATHER);
         } else {
-            Ok(RobotState::CHILL)
+            return Ok(RobotState::CHILL);
         }
     }
 
     pub fn do_gather(&mut self, world: &mut World) -> Result<RobotState, String> {
-        println!("\nARTEMIS-IA: gathering");
+        print_debug("gathering");
 
-        let map = robot_map(world).unwrap();
+        let rocks: Result<usize, OhCrab_collection::collection::LibErrorExtended> =
+            CollectTool::collect_instantly_reachable(self, world, &Content::Rock(0));
+        let trees: Result<usize, OhCrab_collection::collection::LibErrorExtended> =
+            CollectTool::collect_instantly_reachable(self, world, &Content::Tree(0));
 
-        let mut gathered = false;
-
-        if let Some((row, col)) = self.rocks.pop_front() {
-            if let Some(tile) = map[row][col].as_ref() {
-                let content = &tile.content;
-
-                if let Ok(_) =
-                    CollectTool::collect_content(self, world, content, usize::MAX, self.robot.energy.get_energy_level())
-                {
-                    gathered = true;
-                }
-            }
-        }
-
-        println!("\nARTEMIS-IA: we have rocks, lets get some trees");
-
-        if let Some((row, col)) = self.trees.pop_front() {
-            if let Some(tile) = map[row][col].as_ref() {
-                let content = &tile.content;
-
-                if let Ok(_) =
-                CollectTool::collect_content(self, world, content, usize::MAX, self.robot.energy.get_energy_level())
-                {
-                    gathered = true;
-                }
-            }
-        }
-
-        println!("\nARTEMIS-IA: we have trees, lets paint");
-
-        if gathered {
-                Ok(RobotState::PAINT)
-        } else {
-            if self.rocks.is_empty() || self.trees.is_empty() {
-                Ok(RobotState::GATHER)
+        if rocks.is_ok() && trees.is_ok() {
+            if rocks.unwrap() > 0 || trees.unwrap() > 0 {
+                print_debug("we have rocks and trees, lets paint");
+                return Ok(RobotState::PAINT);
             } else {
-                Err("\nARTEMIS-IA: failed to gather\n".to_string())
+                return Ok(RobotState::GATHER);
             }
+        } else {
+            return Err("\nARTEMIS-IA: failed to gather\n".to_string());
         }
     }
 
@@ -187,7 +220,7 @@ impl ArtemisIA {
         // pain't, create art from pain (and stuff you collected)
         let img: GiottoImage;
 
-        println!("\nARTEMIS-IA: painting\n");
+        print_debug("painting");
 
         if self.countdown > 0 {
             img = utils::rand_img();
@@ -205,7 +238,7 @@ impl ArtemisIA {
 
         let paint_state = painter.draw_until_possible(self, world, false);
 
-        println!("\nARTEMIS-IA: painting: {:?}", paint_state);
+        print_debug(format!("painting: {:?}", paint_state).as_str());
 
         match paint_state {
             Ok(s) => {
@@ -229,11 +262,10 @@ impl ArtemisIA {
         // grand sortie: when the robot paints the amount of paintings, assigned during the init state,
         // it gracefully pegs out, and as a last performance the whole map gets covered in lava (red canva, inspired to Fontana's "Concetto Spaziale")
 
-        // TODO: gracefully terminate the robot, find out how to do it ;)
-
-        println!("\nARTEMIS-IA: ok i'll die now, bye!\n");
+        print_debug("ok i'll die now, bye!");
 
         if true {
+            self.handle_event(Event::Terminated);
             Ok(RobotState::STOP)
         } else {
             Err("\nARTEMIS-IA: failed to stop\n".to_string())
@@ -241,7 +273,7 @@ impl ArtemisIA {
     }
 
     pub fn run(&mut self, world: &mut World) {
-        println!("\nARTEMIS-IA: why are you running? why-are-you-running?");
+        print_debug("why are you running? why-are-you-running?");
         let new_state;
 
         match &self.state {
@@ -254,9 +286,10 @@ impl ArtemisIA {
 
         match new_state {
             Ok(new) => {
-                println!("ARTEMIS-IA: state transition: {:?} -> {:?}\n", self.state, new);
+                print_debug(format!("state transition: {:?} -> {:?}", self.state, new).as_str());
                 match (&self.state, &new) {
                     (RobotState::INIT, RobotState::CHILL)
+                    | (RobotState::CHILL, RobotState::CHILL)
                     | (RobotState::CHILL, RobotState::GATHER)
                     | (RobotState::GATHER, RobotState::GATHER)
                     | (RobotState::GATHER, RobotState::PAINT)
@@ -265,22 +298,22 @@ impl ArtemisIA {
                     | (RobotState::PAINT, RobotState::STOP) => self.state = new,
                     _ => panic!("Invalid state transition"),
                 }
-            },
-            Err(e) => println!("\nARTEMIS-IA: error: {}\n", e),
+            }
+            Err(e) => print_debug(format!("ERROR: {}\n", e).as_str()),
         }
-
-        
     }
 }
 
 impl Runnable for ArtemisIA {
     fn process_tick(&mut self, world: &mut World) {
         self.run(world);
+        self.ui.process_tick(world);
     }
 
     fn handle_event(&mut self, event: Event) {
         // self.event_queue.borrow_mut().push(event);
-        println!("event: {:?}", event);
+        print_debug(format!("{:?}", event).as_str());
+        self.ui.handle_event(event);
     }
     fn get_energy(&self) -> &Energy {
         &self.robot.energy

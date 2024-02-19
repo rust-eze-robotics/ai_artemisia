@@ -1,6 +1,7 @@
 use midgard::world_generator::{WorldGenerator, WorldGeneratorParameters};
-use robotics_lib::runner::Runner;
+use robotics_lib::{event::events::Event, runner::Runner, world::World};
 use rust_eze_ai_artemisia::ArtemisIA;
+use ui_lib::RunnableUi;
 
 fn main() {
     let world_size = 200;
@@ -13,7 +14,9 @@ fn main() {
     };
     let mut world_generator = WorldGenerator::new(params);
 
-    let artemis = Box::new(ArtemisIA::new(world_size));
+    let ui = Box::new(UI{});
+
+    let artemis = Box::new(ArtemisIA::new(world_size, ui));
     let run = Runner::new(artemis, &mut world_generator);
 
     match run {
@@ -27,4 +30,11 @@ fn main() {
     }
 
     println!("in the end, it all ends.");
+}
+
+struct UI {}
+
+impl RunnableUi for UI{
+    fn process_tick(&mut self, world: &mut World){}
+    fn handle_event(&mut self, event: Event){}
 }
