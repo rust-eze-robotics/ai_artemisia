@@ -24,7 +24,7 @@ use giotto_tool::tools::{
 };
 use sense_and_find_by_Rustafariani::{Action, Lssf};
 use spyglass::spyglass::{Spyglass, SpyglassResult};
-use OhCrab_collection::collection::CollectTool;
+use OhCrab_collection::collection::{CollectTool, LibErrorExtended};
 
 pub fn get_world_generator_parameters() -> WorldGeneratorParameters {
     WorldGeneratorParameters {
@@ -41,11 +41,12 @@ pub fn get_world_generator_parameters() -> WorldGeneratorParameters {
 
 #[derive(Debug, PartialEq)]
 pub enum RobotState {
-    INIT = 0,
-    CHILL, // wanders around for a while, exploring the world using `spyglass` to get inspired for her next masterpiece
-    GATHER, // use `sense&find` to find collect stuff
-    PAINT, // use `giotto_tool` to paint on the map
-    STOP,  // as most artist do, the robot gracefully terminates its existance
+    Init = 0,
+    Chill, // wanders around for a while, exploring the world using `spyglass` to get inspired for her next masterpiece
+    Gather, // use `sense&find` to find stuff
+    Collect, // use CollectTool to collect stuff
+    Paint, // use `giotto_tool` to paint on the map
+    Stop,  // as most artist do, the robot gracefully terminates its existance
            // NUM_STATES,
 }
 
@@ -71,7 +72,7 @@ impl ArtemisIA {
             ui,
             robot: Robot::new(),
             wrld_size,
-            state: RobotState::INIT,
+            state: RobotState::Init,
             countdown: 1,
             rocks: VecDeque::new(),
             trees: VecDeque::new(),
@@ -88,7 +89,7 @@ impl ArtemisIA {
         self.countdown = rng.gen_range(0..=13);
 
         if true {
-            Ok(RobotState::CHILL)
+            Ok(RobotState::Chill)
         } else {
             Err("\nARTEMIS-IA: failed to init\n".to_string())
         }
@@ -107,8 +108,9 @@ impl ArtemisIA {
             Some(self.robot.energy.get_energy_level()),
             true,
             (self.wrld_size / 2) as f64,
-            |tile: &Tile| matches!(tile.clone().content, Content::Rock(0)),
+            |tile: &Tile| tile.content == Content::Rock(0) || tile.content == Content::Tree(0),
         );
+
         match spyglass.new_discover(self, world) {
             SpyglassResult::Complete(_) => {
                 print_debug("chilled enough, saw lots of ROCKS, time to gather");
@@ -118,22 +120,6 @@ impl ArtemisIA {
             }
             _ => {
                 print_debug("chilling, looking for ROCKS");
-            }
-        }
-
-        spyglass.set_stop_when(|tile: &Tile| matches!(tile.clone().content, Content::Tree(0)));
-        match spyglass.new_discover(self, world) {
-            SpyglassResult::Complete(_) => {
-                print_debug("chilled enough, saw lots of TREES, time to gather");
-            }
-            SpyglassResult::Failed(e) => {
-                return Err(format!(
-                    "\nARTEMIS-IA: oh no! our spyglass...is broken!\nSPYGLASS FAILED: {:?}",
-                    e
-                ));
-            }
-            _ => {
-                print_debug("chilling, looking for TREES");
             }
         }
 
@@ -161,20 +147,25 @@ impl ArtemisIA {
         }
 
         if self.actions.is_empty() {
-            if self.rocks.is_empty() || self.trees.is_empty() {
-                print_debug(self.rocks.len().to_string().as_str());
-                print_debug(self.trees.len().to_string().as_str());
-                return Ok(RobotState::CHILL);
+            if self.rocks.is_empty() && self.trees.is_empty() {
+                return Ok(RobotState::Chill);
             }
 
-            if let Some((row, col)) = self.rocks.pop_front() {
-                self.actions.extend(lssf.get_action_vec(row, col).unwrap());
-            }
+            // if let Some((row, col)) = self.rocks.pop_front() {
+            //     self.actions.extend(lssf.get_action_vec(row, col).unwrap());
+            // }
 
             if let Some((row, col)) = self.trees.pop_front() {
                 self.actions.extend(lssf.get_action_vec(row, col).unwrap());
+                return Ok(RobotState::Gather);
             }
         }
+
+        Err(String::default())
+    }
+
+    pub fn do_gather(&mut self, world: &mut World) -> Result<RobotState, String> {
+        print_debug("gathering");
 
         if self.actions.len() > 1 {
             if let Some(action) = self.actions.pop_front() {
@@ -204,27 +195,19 @@ impl ArtemisIA {
 
         if self.actions.len() == 1 {
             self.actions = VecDeque::new();
-            return Ok(RobotState::GATHER);
+            return Ok(RobotState::Collect);
         } else {
-            return Ok(RobotState::CHILL);
+            return Ok(RobotState::Chill);
         }
     }
 
-    pub fn do_gather(&mut self, world: &mut World) -> Result<RobotState, String> {
-        print_debug("gathering");
+    pub fn do_collect(&mut self, world: &mut World) -> Result<RobotState, String> {
+        let rocks = CollectTool::collect_instantly_reachable(self, world, &Content::Rock(0));
+        let trees = CollectTool::collect_instantly_reachable(self, world, &Content::Tree(0));
 
-        let rocks: Result<usize, OhCrab_collection::collection::LibErrorExtended> =
-            CollectTool::collect_instantly_reachable(self, world, &Content::Rock(0));
-        let trees: Result<usize, OhCrab_collection::collection::LibErrorExtended> =
-            CollectTool::collect_instantly_reachable(self, world, &Content::Tree(0));
-
-        if rocks.is_ok() && trees.is_ok() {
-            if rocks.unwrap() > 0 || trees.unwrap() > 0 {
-                print_debug("we have rocks and trees, lets paint");
-                return Ok(RobotState::PAINT);
-            } else {
-                return Ok(RobotState::GATHER);
-            }
+        if rocks.is_ok() || trees.is_ok() {
+            print_debug("we have rocks and trees, lets paint");
+            return Ok(RobotState::Paint);
         } else {
             return Err("\nARTEMIS-IA: failed to gather\n".to_string());
         }
@@ -257,13 +240,13 @@ impl ArtemisIA {
         match paint_state {
             Ok(s) => {
                 if self.countdown <= 0 && s == GiottoStatus::Finished {
-                    Ok(RobotState::STOP)
+                    Ok(RobotState::Stop)
                 } else {
                     match s {
                         GiottoStatus::Finished
                         | GiottoStatus::FinishedCell
-                        | GiottoStatus::WaitingForEnergy => Ok(RobotState::CHILL),
-                        GiottoStatus::WaitingForMaterials => Ok(RobotState::GATHER),
+                        | GiottoStatus::WaitingForEnergy => Ok(RobotState::Chill),
+                        GiottoStatus::WaitingForMaterials => Ok(RobotState::Gather),
                     }
                 }
             }
@@ -280,7 +263,7 @@ impl ArtemisIA {
 
         if true {
             self.handle_event(Event::Terminated);
-            Ok(RobotState::STOP)
+            Ok(RobotState::Stop)
         } else {
             Err("\nARTEMIS-IA: failed to stop\n".to_string())
         }
@@ -291,25 +274,26 @@ impl ArtemisIA {
         let new_state;
 
         match &self.state {
-            RobotState::INIT => new_state = self.do_init(),
-            RobotState::CHILL => new_state = self.do_chill(world),
-            RobotState::GATHER => new_state = self.do_gather(world),
-            RobotState::PAINT => new_state = self.do_paint(world),
-            RobotState::STOP => new_state = self.do_stop(),
+            RobotState::Init => new_state = self.do_init(),
+            RobotState::Chill => new_state = self.do_chill(world),
+            RobotState::Gather => new_state = self.do_gather(world),
+            RobotState::Collect => new_state = self.do_collect(world),
+            RobotState::Paint => new_state = self.do_paint(world),
+            RobotState::Stop => new_state = self.do_stop(),
         }
 
         match new_state {
             Ok(new) => {
                 print_debug(format!("state transition: {:?} -> {:?}", self.state, new).as_str());
                 match (&self.state, &new) {
-                    (RobotState::INIT, RobotState::CHILL)
-                    | (RobotState::CHILL, RobotState::CHILL)
-                    | (RobotState::CHILL, RobotState::GATHER)
-                    | (RobotState::GATHER, RobotState::GATHER)
-                    | (RobotState::GATHER, RobotState::PAINT)
-                    | (RobotState::PAINT, RobotState::CHILL)
-                    | (RobotState::PAINT, RobotState::GATHER)
-                    | (RobotState::PAINT, RobotState::STOP) => self.state = new,
+                    (RobotState::Init, RobotState::Chill)
+                    | (RobotState::Chill, RobotState::Chill)
+                    | (RobotState::Chill, RobotState::Gather)
+                    | (RobotState::Gather, RobotState::Gather)
+                    | (RobotState::Gather, RobotState::Paint)
+                    | (RobotState::Paint, RobotState::Chill)
+                    | (RobotState::Paint, RobotState::Gather)
+                    | (RobotState::Paint, RobotState::Stop) => self.state = new,
                     _ => panic!("Invalid state transition"),
                 }
             }
