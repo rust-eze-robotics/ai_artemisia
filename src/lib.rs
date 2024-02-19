@@ -30,9 +30,12 @@ pub fn get_world_generator_parameters() -> WorldGeneratorParameters {
     WorldGeneratorParameters {
         time_progression_minutes: 60,
         contents_radii: ContentsRadii {
-            rocks_in_plains: 3,
-            rocks_in_hill: 3,
-            rocks_in_mountain: 3,
+            rocks_in_plains: 2,
+            rocks_in_hill: 2,
+            rocks_in_mountain: 2,
+            trees_in_forest: 2,
+            trees_in_hill: 2,
+            trees_in_mountain: 2,
             ..Default::default()
         },
         ..Default::default()
@@ -65,8 +68,6 @@ impl ArtemisIA {
     // pub fn new(wrld_size: usize, event_queue: Rc<RefCell<Vec<Event>>>) -> Self {
 
     pub fn new(wrld_size: usize, ui: Box<dyn RunnableUi>) -> Self {
-        print_debug("ArtemisIA created");
-
         ArtemisIA {
             ui,
             robot: Robot::new(),
@@ -81,8 +82,6 @@ impl ArtemisIA {
 
     // state functions
     pub fn do_init(&mut self) -> Result<RobotState, String> {
-        print_debug("in(n)itializing");
-
         let mut rng = rand::thread_rng();
         self.countdown = rng.gen_range(0..=13);
 
@@ -96,8 +95,6 @@ impl ArtemisIA {
     pub fn do_chill(&mut self, world: &mut World) -> Result<RobotState, String> {
         // wanders around for a while, explore with spyglass, relax and get inspired for her next masterpiece
 
-        print_debug("chilling");
-
         let mut spyglass = Spyglass::new(
             self.robot.coordinate.get_row(),
             self.robot.coordinate.get_col(),
@@ -109,19 +106,7 @@ impl ArtemisIA {
             |tile: &Tile| tile.content == Content::Rock(0) || tile.content == Content::Tree(0),
         );
 
-        match spyglass.new_discover(self, world) {
-            SpyglassResult::Complete(_) => {
-                print_debug("chilled enough, saw lots of ROCKS, time to gather");
-            }
-            SpyglassResult::Failed(_) => {
-                return Err("\nARTEMIS-IA: oh no! our spyglass...is broken!\n".to_string());
-            }
-            _ => {
-                print_debug("chilling, looking for ROCKS");
-            }
-        }
-
-        print_debug("spyglass complete, time to lssf");
+        let result = spyglass.new_discover(self, world);
 
         let map = robot_map(world).unwrap();
 
@@ -156,8 +141,6 @@ impl ArtemisIA {
     }
 
     pub fn do_gather(&mut self, world: &mut World) -> Result<RobotState, String> {
-        print_debug("gathering");
-
         if self.actions.len() > 1 {
             if let Some(action) = self.actions.pop_front() {
                 match action {
@@ -197,18 +180,16 @@ impl ArtemisIA {
         let trees = CollectTool::collect_instantly_reachable(self, world, &Content::Tree(0));
 
         if rocks.is_ok() || trees.is_ok() {
-            print_debug("we have rocks and trees, lets paint");
-            return Ok(RobotState::Paint);
+            Ok(RobotState::Paint)
         } else {
-            return Err("\nARTEMIS-IA: failed to gather\n".to_string());
+            Err("\nARTEMIS-IA: failed to gather\n".to_string())
         }
     }
 
     pub fn do_paint(&mut self, world: &mut World) -> Result<RobotState, String> {
+        return Ok(RobotState::Paint);
         // pain't, create art from pain (and stuff you collected)
         let img: GiottoImage;
-
-        print_debug("painting");
 
         if self.countdown > 0 {
             img = utils::rand_img();
@@ -225,8 +206,6 @@ impl ArtemisIA {
         let mut painter = Drawer::new(img, coord, GiottoDebug::new(false));
 
         let paint_state = painter.draw_until_possible(self, world, false);
-
-        print_debug(format!("painting: {:?}", paint_state).as_str());
 
         match paint_state {
             Ok(s) => {
@@ -250,8 +229,6 @@ impl ArtemisIA {
         // grand sortie: when the robot paints the amount of paintings, assigned during the init state,
         // it gracefully pegs out, and as a last performance the whole map gets covered in lava (red canva, inspired to Fontana's "Concetto Spaziale")
 
-        print_debug("ok i'll die now, bye!");
-
         if true {
             self.handle_event(Event::Terminated);
             Ok(RobotState::Stop)
@@ -261,7 +238,6 @@ impl ArtemisIA {
     }
 
     pub fn run(&mut self, world: &mut World) {
-        print_debug("why are you running? why-are-you-running?");
         let new_state;
 
         match &self.state {
@@ -305,8 +281,6 @@ impl Runnable for ArtemisIA {
     }
 
     fn handle_event(&mut self, event: Event) {
-        // self.event_queue.borrow_mut().push(event);
-        print_debug(format!("{:?}", event).as_str());
         self.ui.handle_event(event);
     }
     fn get_energy(&self) -> &Energy {
