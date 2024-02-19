@@ -273,6 +273,10 @@ impl ArtemisIA {
             RobotState::Stop => new_state = self.do_stop(),
         }
 
+        if let Ok(state) = new_state {
+            self.state = state;
+        }
+
         // :)
         // match new_state {
         //     Ok(new) => {
