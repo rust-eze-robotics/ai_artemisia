@@ -71,10 +71,10 @@ impl ArtemisIA {
     pub fn new(wrld_size: usize, ui: Box<dyn RunnableUi>) -> Self {
         let mut goal_tracker = GoalTracker::new();
         goal_tracker.add_goal(Goal::new(
-            String::from("Contents"),
+            String::default(),
             String::default(),
             GoalType::GetItems,
-            None,
+            Some(Content::Tree(0)),
             20,
         ));
 
@@ -203,12 +203,12 @@ impl ArtemisIA {
 
         if let Ok(count) = rocks {
             self.goal_tracker
-                .update_manual(GoalType::GetItems, None, count)
+                .update_manual(GoalType::GetItems, Some(Content::Tree(0)), count)
         }
 
         if let Ok(count) = trees {
             self.goal_tracker
-                .update_manual(GoalType::GetItems, None, count)
+                .update_manual(GoalType::GetItems, Some(Content::Tree(0)), count)
         }
 
         if rocks.is_ok() || trees.is_ok() {
